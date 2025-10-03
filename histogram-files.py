@@ -3,9 +3,10 @@ import numpy as np
 import os
 import re
 from scipy.stats import norm, entropy # for histstats
+from concurrent.futures import ProcessPoolExecutor, as_completed # for parallelization
 
 def flimhist(asciifile, minval=0, maxval=4000, binwidth=10):
-    data = np.loadtxt(asciifile)
+    data = np.fromfile(asciifile, sep=' ', dtype=float32)
     bins = int(round((maxval-minval)/binwidth + 1,0))
     h, b = np.histogram(data, range=[minval, maxval], bins=bins)
     return (h, b, binwidth)
@@ -78,11 +79,23 @@ def filesrecursively(path, suffixes):
                 filepath = os.path.join(dirpath, file)
                 yield filepath
 
-def accumulatehists(path, suffixes):
+def files_non_recursively(dirpath, suffixes):
+    """ Returns an lazy generator over files matching suffixes in path.
+    path: the root directory
+    Suffixes: a string or iterator of strings.
+
+    Result: Yields the path to the matching files.
+    """
+    for file in os.listdir(dirpath):
+        for file in files:
+            if file.endswith(suffixes):
+                yield os.path.join(dirpath, file)
+
+def accumulatehists(dirpath, suffixes):
     """Combine histograms from multiple files into a single histogram."""
     master_h = None
     print(":", end="")
-    for file in filesrecursively(path, suffixes):
+    for file in files_recursively(dirpath, suffixes):
         if master_h is None: # first loop
             master_h, control_b, control_binwidth = flimhist(file, 0, 4000)
         else:
@@ -91,16 +104,48 @@ def accumulatehists(path, suffixes):
                 master_h += h
                 print(".", end="")
     print(":")
+    if typeof(suffixes)==typeof("string"):
+        writehists(dirpath, "combined_" + suffixes)
     return (master_h, control_b, control_binwidth)
 
+def process_file(file):
+    try:
+        h, _, _ = flimhist(file, 0, 4000)
+        return h
+    except Exception as e:
+        print(f"Error processing {file}: {e}")
+        return None
 
-h, b, w = accumulatehists(r"C:\Users\lociuser\Desktop\panc-slides", "color coded value.asc")
+def accumulatehists_parallel(dirpath, suffixes):
+    files = list(files_recursively(dirpath, suffixes))
+    bins = None
+    total_hist = None
 
-print("h follows")
-print(h)
-print("b follows")
-print(b)
-print("w:", w)
-showhist(h, b, w)
-histstats(h[5:], b[5:], w)
+    with ProcessPoolExecutor() as executor:
+        futures = {executor.submit(process_file, file): file for file in files}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                if total_hist is None:
+                    total_hist = result
+                else:
+                    total_hist += result
+                print(".", end="")
+    print(":")
+    return total_hist, np.linspace(0, 4000, int(4000 / 10) + 1), 10
+
+if __name__ == "__main__":
+    dirpath = r"C:\Users\lociuser\Desktop\panc-slides"
+    suffix = "color coded value.asc"
+
+    h, b, w = accumulatehists_parallel(dirpath, suffix)
+
+    print("h follows")
+    print(h)
+    print("b follows")
+    print(b)
+    print("w:", w)
+
+    showhist(h, b, w)
+    histstats(h[5:], b[5:], w)
 
