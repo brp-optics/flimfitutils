@@ -94,7 +94,13 @@ def accumulatehists(path, suffixes):
     return (master_h, control_b, control_binwidth)
 
 
-h, b, w = accumulatehists(r"C:\Users\lociuser\Desktop\s96-exet-fitet-sz-b3", "t2.asc")
+h, b, w = accumulatehists(r"C:\Users\lociuser\Desktop\panc-slides", "color coded value.asc")
+
+print("h follows")
+print(h)
+print("b follows")
+print(b)
+print("w:", w)
 showhist(h, b, w)
 histstats(h[5:], b[5:], w)
 
