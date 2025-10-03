@@ -11,7 +11,10 @@ import sys
 def flimload(asciifile, verbose):
     if verbose:
         print(f"Loading {asciifile}...", end="")
-    data = np.loadtxt(asciifile)
+    try:
+        data = np.loadtxt(asciifile)
+    except Exception as e:
+        print(f"loadtxt: couldn't load {asciifile}: {e}")
     if verbose:
         print("success.")
     return data
@@ -40,13 +43,16 @@ def files_non_recursively(dirpath, suffixes):
         if file.endswith(suffixes):
             yield os.path.join(dirpath, file)
 
-def free_bound_ratio(m1, m2, invalid=-1):
+def free_bound_ratio(m1, m2, invalid=-1, file=None):
     """ Calculate the free-bound ratio given to coefficient matrices.
     Replaces output with _invalid_ where there would be division by zero.
     """
 
     m2[m2==0] = invalid # Avoid division by zero, and free_bound_ratio should never go negative.
-    ratio = m1/m2
+    try:
+        ratio = m1/m2
+    except Exception as e:
+        print(f"free_bound_ratio: processing {file}: {e}", file=sys.stderr) 
     ratio[m2==invalid] = invalid
     return ratio
 
@@ -101,19 +107,23 @@ if __name__ == "__main__":
         for ff, bf in zip(free_files, bound_files):
             free = flimload(ff, args.verbose)
             bound = flimload(bf, args.verbose)
-            ratio = free_bound_ratio(free, bound, args.invalid)
+            ratio = free_bound_ratio(free, bound, args.invalid, ff)
             
             common_stem = os.path.commonprefix((os.path.basename(ff), os.path.basename(bf)))
+            if common_stem[-2:] == '_a':
+                common_stem = common_stem[:-2]
             out_fn = common_stem + suffix
             flim_export(os.path.join(out, out_fn), ratio, args.verbose, args.dry_run)
 
     else: # InDir not a directory.
         fd = flimload(free, args.verbose)
         bd = flimload(bound, args.verbose)
-        ratio = free_bound_ratio(fd, bd, args.invalid)
+        ratio = free_bound_ratio(fd, bd, args.invalid, free)
 
         if os.path.isdir(out):
             common_stem = os.path.commonprefix((os.path.basename(free), os.path.basename(bound)))
+            if common_stem[-2:] == '_a':
+                common_stem = common_stem[:-2]
             out_fn = common_stem + suffix
             flim_export(os.path.join(out, out_fn), ratio, args.verbose, args.dry_run)
 
