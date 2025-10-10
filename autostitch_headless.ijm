@@ -1,18 +1,21 @@
 // Automatically stitch a directory of files containing a "TileConfiguration.txt" file.
+// Usage: fiji --headless autostitch_headless.ijm "input_directory output_directory TileConfiguration_file_name.txt"
+// 
+//
 
 print("Hello World!"); //For debugging headless.
 
 // ---- argument parsing wrapper ----
 args = getArgument();
 if (args == "") {
-    exit("ERROR: No arguments provided. Usage: fiji --headless -macro autostitch_headless.ijm 'directory TileConfiguration.txt'");
+    exit("ERROR: No arguments provided. Usage: fiji --headless -macro autostitch_headless.ijm 'input_directory output_directory TileConfiguration.txt'");
 }
 
 // split on spaces
 list = split(args, " ");
 
-// check we got at least 2 args
-expected = 2;
+// check we got at least 3 args
+expected = 3;
 if (list.length < expected) {
     msg = "ERROR: Expected at least " + expected + " arguments, but got " + list.length + ".";
     exit(msg);
@@ -25,10 +28,10 @@ for (i = 0; i < list.length; i++) {
 
 // assign to named variables for clarity
 input  = list[0];
-tcfile = list[1];
+output = list[1];
+tcfile = list[2];
 print("Input: " + input);
 print("tcfile:" + tcfile);
-output = input;
 
 // The way I'm calling the script, output is a Unix relative path, but the script doesn't recognize a relative path when opening files.
 // So we get the working directory as the directory the script is in.
