@@ -19,14 +19,16 @@ roiManager("Open", roiFile);
 roiManager("Select", roiNum);
 run("Histogram", "bins=10000 use x_min=0 x_max=17097.80 y_max=Auto");
 Table.showHistogramTable;
-saveAs("Results", outputDir + File.separator + inputName + "-roi_" + toString(roiNum));
+saveAs("Results", outputDir + File.separator + inputName + "-roi_" + toString(roiNum) +"-hist.csv");
 run("Close All");
 
+// Make a Thumbnail of the roi so I can rename it easily later.
 open(input);
-run("ROI Manager...");
-roiManager("Open", roiFile);
 roiManager("Select", roiNum);
 run("Invert");
 run("8-bit"); // I would save as bool if I could, but FIJI saves Masks as 8-bit, so I might as well keep some contrast...
+w = getWidth(); h=getHeight();
+w = round(w/10); h=round(h/10);
+run("Scale...", "x=0.1 y=0.1 width=" + toString(w) + " height=" + toString(h) + " interpolation=Bicubic average create");
 saveAs("Tiff", outputDir +  File.separator + inputName + "-roi_" + toString(roiNum) + ".tif");
 run("Close All");
