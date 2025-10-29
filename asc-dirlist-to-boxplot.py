@@ -5,10 +5,9 @@ Convert a series of directories containing ascii or tif files to box plots, one 
 Deps: numpy, tifffile
     pip install numpy tifffile
   
-
 Usage:
-    python asc-dirlist-to-boxplot dir_list.txt suffix  # Show output interactively
-    python asc-dirlist-to-boxplot dir_list.txt suffix --output=plot.png # 
+    python asc-dirlist-to-boxplot --input dir_list.txt --labels label_list.txt --type tm --suffix "_color coded value.asc" # Show output interactively
+    python asc-dirlist-to-boxplot dir_list.txt suffix --output=plot.png # Not yet implemented.
     """
 
 import subprocess # for building my dataset directory list
@@ -51,7 +50,6 @@ def files_non_recursively(dirpath, suffixes):
 def resolve_inputs(inputs: Iterable[str], suffixes=None, recursive=False, verbose=False) -> List[str]:
     """Take in a list of directories; return a list of list of actual file paths.
     Note that suffix limitations are only applied to files in directories."""
-    seen = set()
     out = []
     if type(inputs) == type("string"):
         inputs = [inputs]
@@ -68,7 +66,6 @@ def resolve_inputs(inputs: Iterable[str], suffixes=None, recursive=False, verbos
                       f"Suffix {suffixes} not applied to {inp}.")
             else:
                 if os.path.exists(inp) and inp not in seen:
-                    seen.add(inp)
                     out.append([inp])
     return out
 
@@ -106,21 +103,24 @@ def random_points(data, ratio):
     return c
 
 
+def safe_np_log10(ndarr):
+    ndarr[ndarr<=0]=1e-16
+    return np.log10(ndarr)
+
 
 
 def main():
     ap = argparse.ArgumentParser(
         description="Plot directories of 256x256 ASCII float grids in boxplot form."
     )
-    ap.add_argument("input", nargs="+", help="File containing list of directories, or list of directories.")
-    
-    ap.add_argument("--output", type=str, help="Single file for output. Only used if single file for input.")
+    ap.add_argument("--input", nargs="+", help="File containing list of directories, or list of directories.")
+    ap.add_argument("--labels", nargs="+", help="File containing list of matching axis labels.")
     ap.add_argument("--suffix", type=str, help="Limit input from directories to files matching this sufffix. Ignored if type specified.")
     ap.add_argument("--shape", type=str, default="256x256", help="Shape of data input files.")
-    ap.add_argument("--type", type=str, help="Either 'ar' or 'tm'.")
-    ap.add_argument("--dry-run", action="store_true", default=False, help="Don't write to disk.")
-    ap.add_argument("--fail-fast", action="store_true", help="Stop on first error")
+    ap.add_argument("--type", type=str, help="Either 'ar' or 'tm'. Used for y-axis label.")
+    #ap.add_argument("--dry-run", action="store_true", default=False, help="Don't write to disk.")
     args = ap.parse_args()
+
 
     try:
         h, w = map(int, args.shape.lower().split("x"))
@@ -128,73 +128,65 @@ def main():
         raise SystemExit("--shape must look like HxW, e.g., 256x256")
     shape = (h, w)
 
-    if os.isfile(args.inputs):
-        inputs = readlines(args.inputs)
+    if type(args.input)==type([]) and len(args.input)==1 and os.path.isfile(args.input[0]):
+        with open(args.input[0]) as f:
+            inputs = f.readlines()
+            inputs = [l.strip() for l in inputs]
         print(inputs) ## Otherwise untested.
     else:
-        inputs = args.inputs
+        inputs = [s.strip() for s in args.input]
+        print("inputs:", inputs)
 
-    if args.type == "ar":
-        suffix = "_ar.asc"
-        path_prefix = lambda x: "data/processed/calculated_ars/" + x
-    elif args.type == "tm":
-        suffix = "_color coded value.asc"
-        path_prefix = lambda x:
-
-
-
-        
-        path_prefix
+    if type(args.labels)==type([]) and len(args.labels)==1 and os.path.isfile(args.labels[0]):
+        with open(args.labels[0]) as f:
+            labels = f.readlines()
+            labels = [l.strip() for l in labels]
     else:
-        suffix = args.suffix
-        path_prefix = ""
+        labels = [l.strip() for l in args.labels]
 
-    paths = resolve_inputs(inputs, args.recursive, args.verbose, args.suffix)
-    if not paths:
-        raise SystemExit("No input files found.")
-    if len(paths) > 1: # Need output dir.
-        os.makedirs(args.outdir, exist_ok=True)
-    
-        ok, failed = 0, 0
-        for p in paths:
-            try:
-                img = load_ascii_floats(p, shape, args.verbose)
-                base = os.path.basename(p)
-                name, _sep, _ext = base.partition(".")
-                out_path = os.path.join(args.outdir, name + args.outsuffix)
-                save_tiff_float32(out_path, img, args.compression, args.dry_run, args.verbose)
-                if not args.verbose:
-                    print(".")
-                if args.verbose:
-                    print(f"[OK] {p} -> {out_path} (float32, {img.shape})")
-                ok += 1
-                        
-            except Exception as e:
-                print(f"[ERR] {p}: {e}")
-                failed += 1
-                if args.fail_fast:
-                    raise
-
-        print(f"Done. Converted: {ok}, Failed: {failed}, Outdir: {args.outdir}")
-    else: # Single file output
-        for p in paths:
-            try:
-                img = load_ascii_floats(p, shape, args.verbose)
-                save_tiff_float32(args.outfile, img, args.compression, args.dry_run, args.verbose)
-                if args.verbose:
-                    print(f"[OK] {p} -> {args.outfile} (float32, {img.shape})")
-            except Exception as e:
-                print(f"[ERR] {p}: {e}")
-                if args.fail_fast:
-                    raise
+    assert(len(labels) == len(inputs))
         
-plt.figure()
+    if args.type == "ar":
+        ylabel = r'$\alpha_1/\alpha_2$'
+    elif args.type == "tm":
+        ylabel = r'$\tau_{mean}$'
+    else:
+        ylabel = "Values"
+        
+    directory_data = []
+    for dir in resolve_inputs(inputs, suffixes=args.suffix, recursive=False, verbose=True):
+        file_data = []
+        for file in dir:
+            file_data.append(random_points(load_ascii_floats(file, (256, 256), False), 0.001))
+        all_file_data = np.concatenate(file_data)
+        all_file_data = all_file_data[np.isfinite(all_file_data)] # remove NaNs.
+        directory_data.append(all_file_data)
+    print("Filtered to remove nans")
+    print([type(d) for d in directory_data])
+    print([d.size for d in directory_data])
+    print(labels)
 
+    plt.boxplot(directory_data, tick_labels=labels)
+    plt.title("Full-image random points")
+    plt.xlabel("Slide")
+    plt.ylabel(ylabel)
+    plt.show()    
 
-                
-#if __name__ == "__main__":
-#    main()
+    log_data = [ safe_np_log10(d) for d in directory_data ]
 
+    print(len(log_data))
+    print(len(labels))
+
+    plt.boxplot(log_data, tick_labels=labels)
+    plt.title("Full-image random points")
+    plt.xlabel("Slide")
+    plt.ylabel((r"log$_{10}($" + ylabel + r"$)$").replace('$$', ''))
+    plt.show()
+
+if __name__ == "__main__":
+    main()
+elif __name__ == "__test__":
+    test()
 
 def test():
 # Testing:
@@ -202,75 +194,4 @@ def test():
     assert(random_points(testarray, 0.001).size == 66)
     assert(random_points(testarray, 0.001).shape == (66,))
  
-
-# test_paths = [ # Test directories for ar-sz
-#     "s2-exet-fitet-sz-b2",
-#     "data/processed/calculated_ars/s4-exet-fitet-sz-b2",
-#     "data/processed/calculated_ars/s6-exet-fitet-irfet-sz-b2",
-#     "data/processed/calculated_ars/s10-exet-fitet-sz-b2",
-#     "data/processed/calculated_ars/s16-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s56-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s58-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s76-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s84-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s86-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s88-exet-fitet-sz-b3",
-#     "data/processed/calculated_ars/s96-exet-fitet-sz-b3",
-# ]
-# axis_labels = ["s2", "s4", "s6", "s10", "s16", "s56", "s58", "s76", "s84", "s86", "s88", "s96"]
-
-test_dirs = [ # Test directories for tm-sz
-    "s2-exet-fitet-sz-b2",
-    "s4-exet-fitet-sz-b2",
-    "s6-exet-fitet-irfet-sz-b2",
-    "s10-exet-fitet-sz-b2",
-    "s16-exet-fitet-sz-b3",
-    "s56-exet-fitet-sz-b3",
-    "s58-exet-fitet-sz-b3",
-    "s76-exet-fitet-sz-b3",
-    "s84-exet-fitet-sz-b3",
-    "s86-exet-fitet-sz-b3",
-    "s88-exet-fitet-sz-b3",
-    "s96-exet-fitet-sz-b3",
-]
-axis_labels = [ t.split('-')[0] for t in test_dirs ]
-
-test_paths = []
-for t in test_dirs:
-    t = subprocess.check_output(f'find data/raw -type d -name {t}', shell=True)
-    t = t.decode('utf-8').strip()
-    test_paths.append(t)
     
-test()
-
-
-
-
-directory_data = []
-for dir in resolve_inputs(test_paths, suffixes="_color coded value.asc", recursive=False, verbose=False):
-    file_data = []
-    for file in dir:
-        file_data.append(random_points(load_ascii_floats(file, (256, 256), False), 0.001))
-    all_file_data = np.concatenate(file_data)
-    directory_data.append(all_file_data)
-
-def safe_np_log(ndarr):
-    ndarr[ndarr<=0]=1e-16
-    return np.log(ndarr)
-    
-plt.boxplot(directory_data, tick_labels=axis_labels)
-plt.title("Full-image random points")
-plt.xlabel("Slide")
-plt.ylabel(r"$\alpha_1/\alpha_2$")
-plt.show()    
-
-log_data = [ safe_np_log(d) for d in directory_data ]
-plt.boxplot(log_data, tick_labels=axis_labels)
-plt.title("Full-image random points")
-plt.xlabel("Slide")
-plt.ylabel(r"log($\alpha_1/\alpha_2$)")
-plt.show()    
-
-
-
-test()
