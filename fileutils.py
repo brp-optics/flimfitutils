@@ -66,7 +66,7 @@ def asc_export(asc_filepath, matrix, verbose=True, dry_run=True):
         else:
             if verbose:
                 print(f"Saving {matrix.shape} to {asc_filepath} ... ", end="")
-            np.savetxt(asc_filepath, matrix, fmt='%.7g', delimiter=' ', newline='\n')
+            np.savetxt(asc_filepath, matrix, fmt='%.6g', delimiter=' ', newline='\n')
             if verbose:
                 print("success.")
     except Exception as e:
