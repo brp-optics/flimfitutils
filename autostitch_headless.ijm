@@ -1,9 +1,7 @@
 // Automatically stitch a directory of files containing a "TileConfiguration.txt" file.
-// Usage: fiji --headless autostitch_headless.ijm "input_directory output_directory TileConfiguration_file_name.txt"
+// Usage: fiji --headless autostitch_headless.ijm "input_directory output_directory TileConfiguration_file_name.txt" -- Note that input_directory and output_directory should have absolute paths.
 // 
 //
-
-print("Hello World!"); //For debugging headless.
 
 // ---- argument parsing wrapper ----
 args = getArgument();
@@ -32,12 +30,6 @@ output = list[1];
 tcfile = list[2];
 print("Input: " + input);
 print("tcfile:" + tcfile);
-
-// The way I'm calling the script, output is a Unix relative path, but the script doesn't recognize a relative path when opening files.
-// So we get the working directory as the directory the script is in.
-//wd = getInfo("macro.filepath");
-//wd = File.getParent(wd);
-//print("Assuming working directory is " + wd);
 
 run("Grid/Collection stitching", "type=[Positions from file] order=[Defined by TileConfiguration] directory=" + input + " layout_file=" + tcfile + " fusion_method=[Linear Blending] regression_threshold=0.30 max/avg_displacement_threshold=2.50 absolute_displacement_threshold=3.50 computation_parameters=[Save memory (but be slower)] image_output=[Write to disk] output_directory=" + output);
 
