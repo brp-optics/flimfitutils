@@ -170,7 +170,7 @@ def main():
                 out_path = os.path.join(args.outdir, name + args.outsuffix)
                 save_tiff_float32(out_path, img, args.compression, args.dry_run, args.verbose)
                 if not args.verbose:
-                    print(".")
+                    print(".", end="")
                 if args.verbose:
                     print(f"[OK] {p} -> {out_path} (float32, {img.shape})")
                 ok += 1
