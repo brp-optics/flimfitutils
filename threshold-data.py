@@ -65,22 +65,60 @@ def threshold_mask(data, threshold_variable, min_thresh, max_thresh):
     data = ma.masked_array(data, threshold_failed)
     return data
 
-def threshold_reasonably(dataset, thresholds):
+def free_bound_ratio(m1, m2, file=None):
+    """ Calculate the free-bound ratio given two masked arrays.
+    Masks out pixels where division is invalid (negative values or division by zero).
+    """
+    # Create combined mask: existing masks + invalid division conditions
+    invalid_mask = ma.getmask(m1) | ma.getmask(m2) | (m1.data <= 0) | (m2.data <= 0)
+    
+    # Perform division safely
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratio_data = m1.data / m2.data
+    
+    ratio = ma.masked_array(ratio_data, mask=invalid_mask)
+    
+    n_invalid = np.sum(invalid_mask)
+    if n_invalid > 0 and file:
+        print(f"free_bound_ratio: {file}: {n_invalid} pixels masked due to invalid division", file=sys.stderr)
+    
+    return ratio
+
+def threshold_reasonably(dataset, thresholds, file=None, verbose=False):
     """Apply all threshold masks to all data in a dataset."""
     first_key = list(dataset.keys())[0]
     combined_mask = np.zeros_like(dataset[first_key], dtype=bool)
+
+    
+    #print(f"\n=== Debugging thresholds for {file} ===")
+    #print(f"Image shape: {dataset[first_key].shape}")
     
     for tkey in thresholds:
         if tkey not in dataset:
+            #print(f"  {tkey}: NOT IN DATASET (skipped)")
             continue
         (min_thresh, max_thresh) = thresholds[tkey]
+        data_min = np.min(dataset[tkey])
+        data_max = np.max(dataset[tkey])
         threshold_failed = (np.array(min_thresh) > dataset[tkey]) | (dataset[tkey] > np.array(max_thresh))
+        n_failed = np.sum(threshold_failed)
+        pct_failed = 100 * n_failed / threshold_failed.size
+        #print(f"  {tkey}: range=[{data_min:.2f}, {data_max:.2f}], thresh=[{min_thresh}, {max_thresh}], failed={n_failed}/{threshold_failed.size} ({pct_failed:.1f}%)")
         combined_mask = combined_mask | threshold_failed
+    
+    total_masked = np.sum(combined_mask)
+    pct_masked = 100 * total_masked / combined_mask.size
+    if verbose:
+        print(f"  TOTAL MASKED: {total_masked}/{combined_mask.size} ({pct_masked:.1f}%)")
+    
+    #if not np.all(combined_mask):
+    #    print("Not all masked")
 
     new_dataset = {}
     for key, data in dataset.items():
-        print(key, data)
         new_dataset[key] = ma.masked_array(data, mask=combined_mask)
+    if 'a1' in new_dataset and 'a2' in new_dataset:
+        new_dataset['ar'] = free_bound_ratio(new_dataset['a1'], new_dataset['a2'], file=file)
     return new_dataset
 
 from scipy.signal import convolve2d
@@ -95,24 +133,13 @@ def add_binned_photons(dataset: Dict, BHbin) -> Dict:
 #def add_ar(dataset: Dict) -> dataset:
 
 def asc_export_ma(path, data, invalid_value_fill, dry_run=False, verbose=False):
-    try:
-        if dry_run:
-            print(f"Would save {data.shape} to {path}.")
-        else:
-            if verbose:
-                print(f"Saving {data.shape} to {path} ...", end="")
-            np.savetxt(path, data.filled(fill_value=invalid_value_fill))
-            if verbose:
-                print("Success.")
-    except:
-        raise
+    asc_export(path, data.filled(fill_value=invalid_value_fill), verbose=verbose, dry_run=dry_run)
     
 def asc_export_mas(pathstem, dataset, suffix, invalid_value_fill, dry_run=False, verbose=False):
     for key, data in dataset.items():
         asc_export_ma(pathstem + "_" + key + suffix, data, invalid_value_fill, dry_run, verbose)
 
 if __name__ == "__main__":
-    print("Hit main")
     parser = argparse.ArgumentParser(description="Threshold raw BH exports to limit to pixels which have sane fits.")
     parser.add_argument("input", type=str, help="Path to ASC or TIF file")
     parser.add_argument("out", type=str, help="Path to output file, or directory to output to with --suffix.")
@@ -150,8 +177,8 @@ if __name__ == "__main__":
     pix_dwell = 5 # us; Pixel dwell time
     frames_acc = 45 # Number of frames accumulated in this experiemnt
     min_phot_confident_fit = 3000 # Minimum number of photons for a confident fit.
-    chisq_min = 0.75
-    chisq_max = 1.5
+    chisq_min = 0.5
+    chisq_max = 2
     if args.bh_bin is not None:
         bin = args.bh_bin
     else:
@@ -164,25 +191,28 @@ if __name__ == "__main__":
                    "t2": (0, np.inf),
                    ## minimum for fitting is 3000 photons in binned_photons
                    ## max photons for TCSPC is 30% photon saturation at 80MHz and 5 us per pixel x 45 frames
-                   "photons": (0, ((2*bin+1)**2)*0.3*freq*pix_dwell*frames_acc),
+                   "photons": (0, 0.3*freq*pix_dwell*frames_acc),
                    "chi": (chisq_min, chisq_max), # ChiSq
                    "binned_photons": (min_phot_confident_fit, np.inf)
               }
 
     dataset = asc_load_all_related(args.input, args.verbose)
     dataset = add_binned_photons(dataset, bin)
-    dataset_th = threshold_reasonably(dataset, thresholds)
+    dataset_th = threshold_reasonably(dataset, thresholds, args.verbose)
+
 
     if os.path.isdir(args.out):
         out_basename_stem = _asc_get_related_stem(os.path.basename(args.input))
         out_path_stem = os.path.join(args.out, out_basename_stem)
+        print(out_path_stem)
         asc_export_mas(out_path_stem,
                        dataset_th,
                        args.suffix,
                        np.nan,
                        args.dry_run,
                        args.verbose)
-    else: 
+    else:
+        print(args.out)
         asc_export_mas(_asc_get_related_stem(args.out),
                        dataset_th,
                        args.suffix,
