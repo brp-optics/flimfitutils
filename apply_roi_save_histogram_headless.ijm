@@ -8,7 +8,7 @@ setBatchMode(true);
 // ---- argument parsing wrapper ----
 args = getArgument();
 if (args == "") {
-    exit("ERROR: No arguments provided. Usage: fiji --headless -macro autostitch_headless.ijm 'image_file roi_file roi_number output_dir'; all paths should be absolute.");
+    exit("ERROR: No arguments provided. Usage: fiji --headless -macro apply_roi_save_histogram_headless.ijm 'image_file roi_file output_dir'; all paths should be absolute.");
 }
 
 // split on spaces
@@ -36,6 +36,7 @@ print("ROI file: " + roiFile);
 print("Output dir:" + outputDir);
 
 inputName = File.getName(input);
+inputNameNoExt = File.getNameWithoutExtension(input);
 
 open(input);
 open(roiFile);
@@ -69,7 +70,7 @@ for (i = 0; i < rawLen; i++) {
 }
 
 // Write CSV: columns = bin_center, count
-csvPath = outputDir + File.separator + inputName + "-" + File.getName(roiFile) + "-hist.csv";
+csvPath = outputDir + File.separator + inputNameNoExt + "-" + File.getName(roiFile) + "-hist.csv";
 f = File.open(csvPath);
 print(f, "bin_center,value");
 for (k = 0; k < targetBins; k++) {
@@ -85,6 +86,6 @@ run("8-bit"); // I would save as bool if I could, but FIJI saves Masks as 8-bit,
 w = getWidth(); h=getHeight();
 w = round(w/10); h=round(h/10);
 run("Scale...", "x=0.1 y=0.1 width=" + toString(w) + " height=" + toString(h) + " interpolation=Bicubic average create");
-saveAs("Tiff", outputDir +  File.separator + inputName + "-" + File.getName(roiFile) + ".tif");
+saveAs("Tiff", outputDir +  File.separator + inputNameNoExt + "-" + File.getName(roiFile) + ".tif");
 run("Close All");
 print("Closed.");
