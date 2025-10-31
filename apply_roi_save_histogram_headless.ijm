@@ -44,39 +44,28 @@ open(roiFile);
 getRawStatistics(nPix, mean, minv, maxv, std, hist);
 print(d2s(mean,6) + "," + d2s(std,6) + "," + nPix);
 
+
+// setOption("NaNBackground", true); // Background ignored in float images.
+
 // Rebin to desired histogram:
 // target: 10k bins spanning [0, 20000]
 // This code courtesy of ChatGPT 5.0; manually audited.
-targetBins = 10000;
+nBins = 10000;
 xMin = 0.0;
-xMax = 20000;
+xMax = 10000;
 range = xMax - xMin;
 if (range <= 0) exit("Invalid histogram range.");
 
-rebin=newArray(targetBins); // This one is my own. GPT hallucinated Array.resize.
-Array.fill(rebin, 0);
-binWidth = range / targetBins;
-
-// Sum raw counts into target bins.
-// Raw indices i represent intensity i (0..65535 for 16-bit).
-rawLen = hist.length; // or is it length(hist)?
-for (i = 0; i < rawLen; i++) {
-    // Map intensity to target bin
-    x = i; // intensity value == index
-    if (x < xMin || x > xMax) continue;
-    idx = floor((x - xMin) / binWidth);
-    if (idx >= targetBins) idx = targetBins - 1; // clamp right edge
-    rebin[idx] = rebin[idx] + hist[i];
-}
+values=newArray(nBins);
+counts = newArray(nBins);    // counts
+getHistogram(values, counts, nBins, xMin, xMax);
 
 // Write CSV: columns = bin_center, count
 csvPath = outputDir + File.separator + inputNameNoExt + "-" + File.getName(roiFile) + "-hist.csv";
 f = File.open(csvPath);
 print(f, "bin_center,value");
-for (k = 0; k < targetBins; k++) {
-    center = xMin + (k + 0.5) * binWidth;
-    print(f, d2s(center, 6) + "," + rebin[k]);
-}
+for (i=0; i<nBins; i++)
+    print(f, d2s(values[i], 9) + "," + counts[i]);
 File.close(f);
 print("Saved hist.");
 
