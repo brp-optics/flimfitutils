@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from PIL import Image
 import tifffile # To use if PIL keeps failing.
+Image.MAX_IMAGE_PIXELS = 56793000000//3 # Free swap space, in bytes, divided by 3. The default value is too small. :)
 
 def load_grayscale_image(path):
     try:
