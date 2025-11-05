@@ -263,7 +263,7 @@ def plot_histogram_with_fit(bin_centers, values, mean, stdev, filename, median=N
     # Formatting
     ax.set_xlabel('Value', fontsize=12)
     ax.set_ylabel('Count', fontsize=12)
-    ax.set_title(f'Histogram: {os.path.basename(filename)}', fontsize=14)
+    ax.set_title(f'Histogram: {os.path.basename(os.path.dirname(filename))}', fontsize=14)
     ax.legend(loc='best')
     ax.grid(True, alpha=0.3)
     
@@ -350,7 +350,7 @@ def main():
         mean, stdev, median, mode, peak = calculate_statistics_multi(bin_centers, values)
         
         # Output results in CSV format
-        print(f"{os.path.basename(input_file)},{mean:.6f},{stdev:.6f}")
+        print(f"{input_file},{mean:.6f},{stdev:.6f},{median:.6f},{mode:.6f},{peak:.6f}")
         results.append((input_file, mean, stdev, median, mode, peak))
         
         # Create plot if requested
