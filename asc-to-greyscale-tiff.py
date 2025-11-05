@@ -137,6 +137,7 @@ def main():
     ap.add_argument("--insuffix", type=str, help="Limit input from directories to files matching this sufffix.")
     ap.add_argument("--outsuffix", type=str, default="_f32.tif", help="Output filename suffix, if output is directory.")
     ap.add_argument("--recursive", "-r", action="store_true", default=False, help="Recurse down subdirectories")
+    ap.add_argument("--flip", action="store_true", default=False, help="Flip image vertically before saving (useful if upstream flips).")
     ap.add_argument("--multiplyby", "-m", type=float,  help="Optional factor to multiply all values by before export. Useful when later processing doesn't handle non-integer values well (ImageJ!).")
     ap.add_argument("--verbose", "-v", action="store_true", default=False, help="Print detailed debugging data.")
     ap.add_argument("--dry-run", action="store_true", default=False, help="Don't write to disk.")
@@ -168,6 +169,8 @@ def main():
                 img = load_ascii_floats(p, shape, args.verbose)
                 if args.multiplyby is not None:
                     img = img * args.multiplyby
+                if args.flip:
+                    img = np.flipud(img)
                 base = os.path.basename(p)
                 name, _sep, _ext = base.partition(".")
                 out_path = os.path.join(args.outdir, name + args.outsuffix)
@@ -191,6 +194,8 @@ def main():
                 img = load_ascii_floats(p, shape, args.verbose)
                 if args.multiplyby is not None:
                     img = img * args.multiplyby
+                if args.flip:
+                    img = np.flipud(img)
                 save_tiff_float32(args.outfile, img, args.compression, args.dry_run, args.verbose)
                 if args.verbose:
                     print(f"[OK] {p} -> {args.outfile} (float32, {img.shape})")
