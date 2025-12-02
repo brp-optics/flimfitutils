@@ -68,7 +68,7 @@ def assign_group(filename, groupings):
 
 
 def create_boxplot(df, groupings, title="Boxplot of Median Values by Group", 
-                   show_points=False, use_stdev=False):
+                   show_points=False, use_stdev=False, filter_zeros=False):
     """
     Create boxplots from the dataframe grouped by the specified groupings.
     
@@ -78,15 +78,30 @@ def create_boxplot(df, groupings, title="Boxplot of Median Values by Group",
         title: Title for the plot
         show_points: Whether to overlay individual data points
         use_stdev: Whether to include stdev information (as error bars or annotations)
+        filter_zeros: Whether to filter out entries with median value of zero.
     """
+
+    if filter_zeros:
+        zero_entries = df[df['median'] == 0].copy()
+        if not zero_entries.empty:
+            print("Warning: filtering out entries with median value = 0:")
+            for _, row in zero_entries.iterrows():
+                print(f"  - {row['filename']} (median=0)")
+            print(f"Total filtered: {len(zero_entries)} files.")
+
+            # Keep only non-zero entries
+            df = df[df['median'] != 0].copy()
+
+            if df.empty:
+                print("Error: All entries have median values of zero. Nothing to plot.")
+                return None, None, df
+    
     # Assign groups to each row
     df['group'] = df['filename'].apply(lambda x: assign_group(x, groupings))
     
     # Filter out 'Other' group if it exists and is empty
     grouped_df = df[df['group'] != 'Other'].copy()
 
-    print(grouped_df)
-    
     if grouped_df.empty:
         print("Warning: No files matched the specified groupings.")
         grouped_df = df.copy()
@@ -99,7 +114,6 @@ def create_boxplot(df, groupings, title="Boxplot of Median Values by Group",
     group_order = [g for g in group_order if g in grouped_df['group'].unique()]
     
     # Create boxplot
-    grouped_df.head()
     box_plot = sns.boxplot(data=grouped_df, x='group', y='median', 
                            order=group_order, ax=ax, hue='group', 
                            palette='Set2', legend=False)
@@ -183,6 +197,9 @@ Examples:
   
   # Include standard deviation info:
   %(prog)s data.csv --use-stdev
+  
+  # Filter out zero values:
+  %(prog)s data.csv --filter-zeros
         '''
     )
     
@@ -208,6 +225,8 @@ Examples:
 
     parser.add_argument('--dpi', type=int, default=100,
                        help='DPI for saved figure (default: 100)')
+
+    parser.add_argument('--filter-zeros', action='store_true', help='Filter out entries with median values of zero.')
     
     args = parser.parse_args()
     
@@ -250,14 +269,15 @@ Examples:
             (ko1_patterns, '1KO'),
             (ko2_patterns, '2KO')
         ]
-    print(groupings)
+    #print(groupings)
     print(df['mean'].head())
     # Create the boxplot
     fig, ax, grouped_df = create_boxplot(
         df, groupings, 
         title=args.title,
         show_points=args.show_points,
-        use_stdev=args.use_stdev
+        use_stdev=args.use_stdev,
+        filter_zeros=args.filter_zeros
     )
     
     # Save or display the plot
