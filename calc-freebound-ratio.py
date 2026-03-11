@@ -46,6 +46,8 @@ def files_non_recursively(dirpath, suffixes):
 def free_bound_ratio(m1, m2, invalid=-1, file=None):
     """ Calculate the free-bound ratio given to coefficient matrices.
     Replaces output with _invalid_ where there would be division by zero.
+
+    
     """
 
 #    if np.any(m2 < 0):
@@ -54,13 +56,16 @@ def free_bound_ratio(m1, m2, invalid=-1, file=None):
 #        print(f"free_bound_ratio: file {file} a1 goes negative.", file=sys.stderr)
     # Surprise, surprise, out of 2208 test files, a1 goes negative in 37 of them and a2 goes negative in 2 of them.
 
+    m2 = m2.copy()    
     m2[m1<=0] = invalid
     m2[m2<=0] = invalid # Avoid division by zero, and free_bound_ratio should never go negative.
     try:
         ratio = m1/m2
     except Exception as e:
-        print(f"free_bound_ratio: processing {file}: {e}", file=sys.stderr) 
-    ratio[m2==invalid] = invalid
+        print(f"free_bound_ratio: processing {file}: {e}", file=sys.stderr)
+    if invalid is not None:
+        ratio[m2==invalid] = invalid
+        # If invalid is None, then bad divisions in m2 are already np.nan.
     return ratio
 
 
@@ -167,3 +172,23 @@ if __name__ == "__main__":
 # ls *_ar.asc | wc -l # 1104.
 # cat *_ar.asc | fmt -1 | wc -l # 1104 * 256 * 256 = 72351744
 # rm *_ar.asc
+
+# Tests courtesy of Sonnet 4.6, 2026.03.11
+def test_basic_ratio():
+    m1 = np.array([[2.0, 4.0], [6.0, 8.0]])
+    m2 = np.array([[1.0, 2.0], [3.0, 4.0]])
+    result = free_bound_ratio(m1.copy(), m2.copy())
+    np.testing.assert_array_almost_equal(result, [[2, 2], [2, 2]])
+
+def test_division_by_zero_replaced_with_invalid():
+    m1 = np.array([[0.0, 1.0]])
+    m2 = np.array([[1.0, 0.0]])
+    result = free_bound_ratio(m1.copy(), m2.copy(), invalid=-1)
+    assert result[0, 0] == -1  # m1<=0 ¡æ invalid
+    assert result[0, 1] == -1  # m2<=0 ¡æ invalid
+
+def test_ratio_of_identical_matrices():
+    m = np.ones((4, 4)) * 3.0
+    result = free_bound_ratio(m.copy(), m.copy(), invalid=-1)
+    # All values should be 1.0
+    np.testing.assert_array_almost_equal(result, np.ones((4, 4)))
