@@ -87,9 +87,9 @@ for dir in *PCK_on_SLIM; do
 	# Flakey, breaks if BH_BIN > 9.
 	
 	# --- Step 1a: Threshold and compute free-bound ratios ---
-        # threshold-data.py loads all related BH exports for each position,
-        # applies quality thresholds (chi-sq, photons, lifetimes, amplitudes),
-        # computes a1/a2 ratio, and saves thresholded data.
+        #  threshold-data.py loads all related BH exports for each position,
+        #  applies quality thresholds (chi-sq, photons, lifetimes, amplitudes),
+        #  computes a1/a2 ratio, and saves thresholded data.
         #
         # Output directory: $dir/t-ar-$subdir_name
         ar_outdir="$dir/t-ar-$subdir_name"
@@ -107,7 +107,7 @@ for dir in *PCK_on_SLIM; do
                 $PYTHON threshold-data.py "$a1_file" "$ar_outdir" \
                     --bh-bin "$BH_BIN" --suffix "$TH_SUFFIX"
             done
-            log "    Free-bound ratio results in: $ar_outdir"
+            log "    Free-bound ratio results saved in $ar_outdir"
         fi
 
         # -- Step 1b: Threshold and extract mean lifetime --
@@ -199,25 +199,25 @@ mkdir -p combined_histograms
 log "  Combined NADH free-bound ratio histogram..."
 $PYTHON histogram-dir.py . \
 	--suffix "_ar${TH_SUFFIX}" \
-    --recursive \
-    --log \
-    --zero_cutoff 0.01 \
-    --saveplot "combined_histograms/combined-457-ar.png" \
-    --title "Combined Free-bound ratio (NADH, 457)" \
-    --text-output "combined_histograms/combined-457-ar-stats.txt" \
-    2>/dev/null || log "  (combined NADH ar histogram failed or no files)"
+	--recursive \
+	--log \
+	--zero_cutoff 0.01 \
+	--saveplot "combined_histograms/combined-457-ar.png" \
+	--title "Combined Free-bound ratio (NADH, 457)" \
+	--text-output "combined_histograms/combined-457-ar-stats.txt" \
+	2>/dev/null || log "  (combined NADH ar histogram failed or no files)"
 
 # FAD ar (535)
 log "  Combined FAD free-bound ratio histogram..."
 $PYTHON histogram-dir.py . \
-    --suffix "_ar${TH_SUFFIX}" \
-    --recursive \
-    --log \
-    --zero_cutoff 0.01 \
-    --saveplot "combined_histograms/combined-535-ar.png" \
-    --title "Combined Free-bound ratio (FAD, 535)" \
-    --text-output "combined_histograms/combined-535-ar-stats.txt" \
-    2>/dev/null || log "  (combined FAD ar histogram failed or no files)"
+	--suffix "_ar${TH_SUFFIX}" \
+	--recursive \
+	--log \
+	--zero_cutoff 0.01 \
+	--saveplot "combined_histograms/combined-535-ar.png" \
+	--title "Combined Free-bound ratio (FAD, 535)" \
+	--text-output "combined_histograms/combined-535-ar-stats.txt" \
+	2>/dev/null || log "  (combined FAD ar histogram failed or no files)"
 
 # == Combined mean lifetime histograms =====================================
 
@@ -324,8 +324,8 @@ for dir in *PCK_on_SLIM; do
 
         log "  Cropping: $subdir -> $crop_outdir"
         $PYTHON crop-tif-dir.py "$subdir" \
-            --outdir "$crop_outdir" \
-            --shape 256x256
+		"$crop_outdir" \
+		--shape 256x256
 
         # Manual inspection: compare original, cropped, and thresholded tm
         # Find matching t-tm directory for side-by-side comparison
@@ -355,11 +355,6 @@ log "  combined_histograms/ : Combined histograms across all experiments"
     for subdir in "$dir/*exet-fitet-sz-b*"
     do
 
-	# Calculate Free-bound ratios. this step includes thresholding on data quality iirc.
-	# Ideal binned photon counts are above 10,000 for biexponential fitting, free NADH lifetimes should be reasonable, and 
-	# Results are saved in $dir/t-ar-$subdir
-
-
 	# Generate histogram of the entire t-ar- directory
 	# Do not include files with "chroma", "urea", or "pollen" in the name (control slide biexponentials aren't meaningful.)
 	# Histogram files containing 535 in the name and 457 in the name separately (NADH vs FAD)
@@ -375,50 +370,4 @@ log "  combined_histograms/ : Combined histograms across all experiments"
 	# Display histograms and proposed thresholds for display
 	
     done
-done
 
-# Generate histogram of all the *PCK_on_SLIM/t-ar-$subdir free-bound ratio files, combined
-# Do not include files with "chroma", "urea", or "pollen" in the name (control slide biexponentials aren't meaningful.)
-# Histogram files containing 535 in the name and 457 in the name separately (NADH vs FAD)
-# Display histogram with proposed thresholds
-
-# Generate histogram of all the *PCK_on_SLIM/t-tm-$subdir mean lifetime files, combnied
-# Same as above
-
-
-for subdir in *PCK_on_SLIM/t-ar-*
-do
-    # Using the selected thresholds,
-    # Generate Free-bound greyscale tiff files using best histogram values from previous step
-    # Results are saved in $dir/gs-t-ar-...
-
-    # Manual inspection:
-    open $subdir
-done
-
-for subdir in *PCK_on_SLIM/t-tm-*
-do
-    
-    # Generate tm greyscale tiff files using the best histogram values
-    # Save them in $dir/gs-t-tm...
-	
-
-    # Manual inspection:
-    open $subdir
-
-	
-done
-    
-for subdir in "$dir/*exet600-1400-0-500-fitet-sz-b*"
-do
-    # Generate cropped tif files from SPCImage's exported .tif files (goal is to crop to 256x256; the bottom bar is a scalebar which we don't need 
-    # Save cropped outputs to $dir/cropped-$subdir
-    mkdir $dir/cropped-$subdir # Do we need to strip off the dir name from $subdir first?
-    
-    # manual inspection
-    open $subdir & open cropped-$subdir & open t-tm-$subdir
-
-    
-done
-
-    
