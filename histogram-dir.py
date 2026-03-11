@@ -213,7 +213,7 @@ def process_file_log(file):
         print(f"Error processing {file}: {e}")
         return None
     
-def accumulatehists_parallel(dirpath, suffixes, recursive, log):
+def accumulatehists_parallel(dirpath, suffixes, recursive, log, include=None, exclude=None):
     if recursive:
         print("We are recursive")
         files = list(files_recursively(dirpath, suffixes))
@@ -221,6 +221,8 @@ def accumulatehists_parallel(dirpath, suffixes, recursive, log):
         print("We are not recursive")
         files = list(files_non_recursively(dirpath, suffixes))
 
+    files = filter_files(files, include=include, exclude=exclude)
+    
     if len(files) == 0:
         raise ValueError("Empty files array in accumulatehists_parallel. Do any files match suffix?")
 
@@ -247,6 +249,25 @@ def accumulatehists_parallel(dirpath, suffixes, recursive, log):
     print(":")
     return total_hist, bins, width
 
+def filter_files(files, include=None, exclude=None):
+    """
+    Filter a file list by include/exclude patterns (matched against basename)
+
+    Input:
+    files: list of file paths
+    include: list of substrings. File must match at least one to be kept.
+    exclude: list of substrings. File is dropped if it matches any.
+
+    Returns:
+    Filtered list of file paths.
+    """
+
+    if include:
+        files = [f for f in files if any(pat in os.path.basename(f) for pat in include)]
+    if exclude:
+        files = [f for f in files if not any(pat in os.path.basename(f) for pat in exclude)]
+    return files
+
 def savehist(filepath, hist, bins, width, zero_cutoff=None):
     if zero_cutoff is not None:
         print("Warning: savehist doesn't take zero_cutoff yet. Full range is being saved.", file=sys.stderr)
@@ -260,6 +281,8 @@ if __name__ == "__main__":
     parser.add_argument("directory", help="Path from which to recursively search.")
     parser.add_argument("--recursive", "-r", action="store_true", help="Recurse into subdirectories, otherwise only process top level.")
     parser.add_argument("--suffix", type=str, help="Suffix to consider for input files.")
+    parser.add_argument("--include", nargs="+", help="Only include files whose basename includes one or more of these substrings.")
+    parser.add_argument("--exclude", nargs="+", help="Exclude files whose basename contains one or more of these substrings.")
     parser.add_argument("--suffixes", type=str, help="Suffixes to consider for input files.")
     parser.add_argument("--saveplot", type=str, help="File for saving plot.")
     parser.add_argument("--savehist", type=str, help="File for saving histogram data.")
@@ -279,7 +302,7 @@ if __name__ == "__main__":
     else:
         suffix = "_color coded value.asc"
 
-    h, b, w = accumulatehists_parallel(args.directory, suffix, args.recursive, args.log)
+    h, b, w = accumulatehists_parallel(args.directory, suffix, args.recursive, args.log, include=args.include, exclude=args.exclude)
 
     if args.showplot:
         showhist(h, b, w, title=args.title, zero_cutoff=args.zero_cutoff)
