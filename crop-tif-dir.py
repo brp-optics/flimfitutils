@@ -6,13 +6,10 @@ import os
 from PIL import Image
 import argparse
 
-# Set the directory containing the .tif files
-input_directory = r'\your\directory\here' 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Crop a directory of files from SPCImage exports. Clobber if no output directory specified.")
-    parser.add_argument("input directory", type=str, help="directory containing input .tiff files.")
-    parser.add_argument("output directory", type=str, help="(optional) output directory.")
+    parser.add_argument("input_directory", type=str, help="directory containing input .tiff files.")
+    parser.add_argument("output_directory", nargs="?", default=None, help="(optional) output directory.")
     
     args = parser.parse_args()
 

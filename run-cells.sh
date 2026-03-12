@@ -25,8 +25,10 @@ set -euo pipefail
 # biexponential fits on single-fluorophore controls aren't meaningful.
 
 # === Configuration ===
-SCRIPTDIR="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="${PYTHON: uv run python}"
+SCRIPTDIR="$(pwd)"
+DATADIR="$1"
+echo "DATADIR=$DATADIR"
+PYTHON="uv run python"
 
 # Suffix for threshold output files
 TH_SUFFIX=".th.asc"
@@ -44,7 +46,7 @@ TM_DISPLAY_MAX="${TM_DISPLAY_MAX:-10000}"    # Mean lifetime display max (ps)
 
 # Multiplication factor for greyscale TIFF (ImageJ doesn't handle fractional floats for ar.)
 AR_MULTIPLY="${AR_MULTIPLY:-1000}"
-TM_MULTIPLY="${TM_MULTIPY:-1}"
+TM_MULTIPLY="${TM_MULTIPLY:-1}"
 
 # Exclusion patterns for control slides
 EXCLUDE_PATTERNS="chroma|urea|pollen"
@@ -73,8 +75,7 @@ subdir_basename() {
 # =============
 log "STEP 1 & 2: Threshold data and compute free-bound ratios + extract mean lifetime"
 
-
-for dir in *PCK_on_SLIM; do
+for dir in "$DATADIR"/*PCK_on_SLIM; do
     [ -d "$dir" ] || continue
     log "Processing experiment directory: $dir"
     
@@ -197,6 +198,7 @@ mkdir -p combined_histograms
 
 # NADH ar (457)
 log "  Combined NADH free-bound ratio histogram..."
+
 $PYTHON histogram-dir.py . \
 	--suffix "_ar${TH_SUFFIX}" \
 	--recursive \
@@ -250,8 +252,8 @@ log "=  t-ar-*/t-tm-*/ directory. Update AR_DISPLAY_MIN/MAX and           ="
 log "=  TM_DISPLAY_MIN/MAX below, then re-run from step 4 onward.        ="
 log "=                                                                     ="
 log "=  Current display range settings:                                    ="
-log "=    AR: [$AR_DISPLAY_MIN, $AR_DISPLAY_MAX]  (횞${AR_MULTIPLY} for TIFF)            ="
-log "=    TM: [$TM_DISPLAY_MIN, $TM_DISPLAY_MAX] ps (횞${TM_MULTIPLY} for TIFF)         ="
+log "=    AR: [$AR_DISPLAY_MIN, $AR_DISPLAY_MAX]  (${AR_MULTIPLY} for TIFF)            ="
+log "=    TM: [$TM_DISPLAY_MIN, $TM_DISPLAY_MAX] ps (${TM_MULTIPLY} for TIFF)         ="
 log "======================================================================"
 log ""
 log "To skip to step 4, set SKIP_TO_TIFF=1 and re-run."
@@ -267,7 +269,7 @@ fi
 log "=== STEP 4: Generating greyscale TIFFs ==="
 
 # == Free-bound ratio TIFFs ================================================
-for subdir in *PCK_on_SLIM/t-ar-*; do
+for subdir in "$DATADIR"/*PCK_on_SLIM/t-ar-*; do
     [ -d "$subdir" ] || continue
     dir="$(dirname "$subdir")"
     subdir_name="$(subdir_basename "$subdir")"
@@ -287,7 +289,7 @@ for subdir in *PCK_on_SLIM/t-ar-*; do
 done
 
 # == Mean lifetime TIFFs ===================================================
-for subdir in *PCK_on_SLIM/t-tm-*; do
+for subdir in "$DATADIR"/*PCK_on_SLIM/t-tm-*; do
     [ -d "$subdir" ] || continue
     dir="$(dirname "$subdir")"
     subdir_name="$(subdir_basename "$subdir")"
@@ -313,7 +315,7 @@ done
 
 log "=== STEP 5: Cropping SPCImage .tif exports to 256x256 ==="
 
-for dir in *PCK_on_SLIM; do
+for dir in "$DATADIR"/*PCK_on_SLIM; do
     [ -d "$dir" ] || continue
 
     for subdir in "$dir"/*exet600-1400-0-500-fitet-sz-b*; do
@@ -352,8 +354,8 @@ log "  cropped-*/      : Cropped 256x256 SPCImage exports"
 log "  combined_histograms/ : Combined histograms across all experiments"
 
 
-    for subdir in "$dir/*exet-fitet-sz-b*"
-    do
+    # for subdir in "$dir/*exet-fitet-sz-b*"
+    # do
 
 	# Generate histogram of the entire t-ar- directory
 	# Do not include files with "chroma", "urea", or "pollen" in the name (control slide biexponentials aren't meaningful.)
@@ -369,5 +371,5 @@ log "  combined_histograms/ : Combined histograms across all experiments"
 	# Histogram files containing 535 in the name and 457 in the name separately (NADH vs FAD)
 	# Display histograms and proposed thresholds for display
 	
-    done
+#    done
 
