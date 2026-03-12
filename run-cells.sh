@@ -72,6 +72,12 @@ subdir_basename() {
     basename "$1"
 }
 
+dir_has_files() {
+    [ -d "$1" ] && [ -n "$(ls -A "$1" 2>/dev/null)" ]
+}
+
+
+echo "=== Run started at $(date) ===" | tee /dev/stderr
 # =============
 log "STEP 1 & 2: Threshold data and compute free-bound ratios + extract mean lifetime"
 
@@ -111,6 +117,7 @@ for dir in "$DATADIR"/*PCK_on_SLIM; do
             log "    Free-bound ratio results saved in $ar_outdir"
         fi
 
+	echo "=== Step 1b started at $(date) ===" | tee /dev/stderr
         # -- Step 1b: Threshold and extract mean lifetime --
         # Same thresholding, but we specifically want the "color coded value"
         # files which contain t_m (mean lifetime).
@@ -133,60 +140,53 @@ for dir in "$DATADIR"/*PCK_on_SLIM; do
 	    log "    Mean lifetime results in: $tm_outdir"
         fi
 
+	echo "=== Step 2a started at $(date) ===" | tee /dev/stderr
         # -- Step 2a: Per-directory histograms for free-bound ratio --
         log "    Generating per-directory ar histograms..."
 
         # NADH channel (457 nm excitation)
-        nadh_ar_files=$(find_data_files "$ar_outdir" "_ar${TH_SUFFIX}" | grep "457" || true)
-        if [ -n "$nadh_ar_files" ]; then
-            $PYTHON histogram-dir.py "$ar_outdir" \
-                    --suffix "_ar${TH_SUFFIX}" \
-		    --include "457" \
-		    --log \
-                    --zero_cutoff 0.01 \
-                    --saveplot "$ar_outdir/hist-457-ar.png" \
-                    --title "Free-bound ratio (NADH, 457) - $subdir_name" \
-                    --text-output "$ar_outdir/hist-457-ar-stats.txt" \
-		|| log "  (no NADH ar files or histogram failed.)"
-
-	       log "      NADH ar histogram saved."
-        fi
+        $PYTHON histogram-dir.py "$ar_outdir" \
+            --suffix "_ar${TH_SUFFIX}" \
+            --include "457" \
+            --log \
+            --zero_cutoff 0.01 \
+            --saveplot "$ar_outdir/hist-457-ar.png" \
+            --title "Free-bound ratio (NADH, 457) - $subdir_name" \
+            --text-output "$ar_outdir/hist-457-ar-stats.txt" \
+            || log "      (no NADH ar files or histogram failed)"
 
         # FAD channel (535 nm excitation)
-        fad_ar_files=$(find_data_files "$ar_outdir" "_ar${TH_SUFFIX}" | grep "535" || true)
-        if [ -n "$fad_ar_files" ]; then
-            $PYTHON histogram-dir.py "$ar_outdir" \
-                    --suffix "_ar${TH_SUFFIX}" \
-		    --include "535" \
-		    --log \
-                    --zero_cutoff 0.01 \
-                    --saveplot "$ar_outdir/hist-535-ar.png" \
-                    --title "Free-bound ratio (FAD, 535) - $subdir_name" \
-                    --text-output "$ar_outdir/hist-535-ar-stats.txt" \
-		|| log "      (no FAD ar files or histogram failed)."
-	    
-        fi
-	
+        $PYTHON histogram-dir.py "$ar_outdir" \
+            --suffix "_ar${TH_SUFFIX}" \
+            --include "535" \
+            --log \
+            --zero_cutoff 0.01 \
+            --saveplot "$ar_outdir/hist-535-ar.png" \
+            --title "Free-bound ratio (FAD, 535) - $subdir_name" \
+            --text-output "$ar_outdir/hist-535-ar-stats.txt" \
+            || log "      (no FAD ar files or histogram failed)"
+
+	echo "=== Step 2b at $(date) ===" | tee /dev/stderr
         # -- Step 2b: Per-directory histograms for mean lifetime --
         log "    Generating per-directory tm histograms..."
 
         # NADH channel
         $PYTHON histogram-dir.py "$tm_outdir" \
-		--suffix "_color coded value${TH_SUFFIX}" \
-		--include "457" \
-		--saveplot "$tm_outdir/hist-457-tm.png" \
-		--title "Mean lifetime (NADH, 457) - $subdir_name" \
-		--text-output "$tm_outdir/hist-457-tm-stats.txt" \
-	    || log "      (no NADH tm files or histogram failed)"
-	
+            --suffix "_color coded value${TH_SUFFIX}" \
+            --include "457" \
+            --saveplot "$tm_outdir/hist-457-tm.png" \
+            --title "Mean lifetime (NADH, 457) - $subdir_name" \
+            --text-output "$tm_outdir/hist-457-tm-stats.txt" \
+            || log "      (no NADH tm files or histogram failed)"
+
         # FAD channel
         $PYTHON histogram-dir.py "$tm_outdir" \
-		--suffix "_color coded value${TH_SUFFIX}" \
-		--include "535" \
-		--saveplot "$tm_outdir/hist-535-tm.png" \
-		--title "Mean lifetime (FAD, 535) - $subdir_name" \
-		--text-output "$tm_outdir/hist-535-tm-stats.txt" \
-	    || log "      (no FAD tm files or histogram failed)"
+            --suffix "_color coded value${TH_SUFFIX}" \
+            --include "535" \
+            --saveplot "$tm_outdir/hist-535-tm.png" \
+            --title "Mean lifetime (FAD, 535) - $subdir_name" \
+            --text-output "$tm_outdir/hist-535-tm-stats.txt" \
+            || log "      (no FAD tm files or histogram failed)"
 
     done
 done
@@ -195,6 +195,7 @@ done
 # == STEP 3: Combined histograms across all experiment directories ==
 # ==========
 
+echo "=== Step 3 started at $(date) ===" | tee /dev/stderr
 log "=== STEP 3: Combined histograms across all experiments ==="
 
 mkdir -p combined_histograms
@@ -203,52 +204,54 @@ mkdir -p combined_histograms
 
 # NADH ar (457)
 log "  Combined NADH free-bound ratio histogram..."
-
 $PYTHON histogram-dir.py "$DATADIR" \
-	--suffix "_ar${TH_SUFFIX}" \
-	--recursive \
-	--log \
-	--zero_cutoff 0.01 \
-	--saveplot "combined_histograms/combined-457-ar.png" \
-	--title "Combined Free-bound ratio (NADH, 457)" \
-	--text-output "combined_histograms/combined-457-ar-stats.txt" \
-	|| log "  (combined NADH ar histogram failed or no files)"
+    --suffix "_ar${TH_SUFFIX}" \
+    --include "457" \
+    --recursive \
+    --log \
+    --zero_cutoff 0.01 \
+    --saveplot "combined_histograms/combined-457-ar.png" \
+    --title "Combined Free-bound ratio (NADH, 457)" \
+    --text-output "combined_histograms/combined-457-ar-stats.txt" \
+    || log "  (combined NADH ar histogram failed or no files)"
 
 # FAD ar (535)
 log "  Combined FAD free-bound ratio histogram..."
 $PYTHON histogram-dir.py "$DATADIR" \
-	--suffix "_ar${TH_SUFFIX}" \
-	--recursive \
-	--log \
-	--zero_cutoff 0.01 \
-	--saveplot "combined_histograms/combined-535-ar.png" \
-	--title "Combined Free-bound ratio (FAD, 535)" \
-	--text-output "combined_histograms/combined-535-ar-stats.txt" \
-	|| log "  (combined FAD ar histogram failed or no files)"
+    --suffix "_ar${TH_SUFFIX}" \
+    --include "535" \
+    --recursive \
+    --log \
+    --zero_cutoff 0.01 \
+    --saveplot "combined_histograms/combined-535-ar.png" \
+    --title "Combined Free-bound ratio (FAD, 535)" \
+    --text-output "combined_histograms/combined-535-ar-stats.txt" \
+    || log "  (combined FAD ar histogram failed or no files)"
 
+echo "=== Combined mean lifetime histograms started at $(date) ===" | tee /dev/stderr
 # == Combined mean lifetime histograms =====================================
 
 # NADH tm (457)
 log "  Combined NADH mean lifetime histogram..."
 $PYTHON histogram-dir.py "$DATADIR" \
-	--suffix "_color coded value${TH_SUFFIX}" \
-	--include "457" \
-	--recursive \
-	--saveplot "combined_histograms/combined-457-tm.png" \
-	--title "Combined Mean lifetime (NADH, 457)" \
-	--text-output "combined_histograms/combined-457-tm-stats.txt" \
-	|| log "  (combined NADH tm histogram failed or no files)"
+    --suffix "_color coded value${TH_SUFFIX}" \
+    --include "457" \
+    --recursive \
+    --saveplot "combined_histograms/combined-457-tm.png" \
+    --title "Combined Mean lifetime (NADH, 457)" \
+    --text-output "combined_histograms/combined-457-tm-stats.txt" \
+    || log "  (combined NADH tm histogram failed or no files)"
 
 # FAD tm (535)
 log "  Combined FAD mean lifetime histogram..."
 $PYTHON histogram-dir.py "$DATADIR" \
-	--suffix "_color coded value${TH_SUFFIX}" \
-	--include "535" \
-	--recursive \
-	--saveplot "combined_histograms/combined-535-tm.png" \
-	--title "Combined Mean lifetime (FAD, 535)" \
-	--text-output "combined_histograms/combined-535-tm-stats.txt" \
-	|| log "  (combined FAD tm histogram failed or no files)"
+    --suffix "_color coded value${TH_SUFFIX}" \
+    --include "535" \
+    --recursive \
+    --saveplot "combined_histograms/combined-535-tm.png" \
+    --title "Combined Mean lifetime (FAD, 535)" \
+    --text-output "combined_histograms/combined-535-tm-stats.txt" \
+    || log "  (combined FAD tm histogram failed or no files)"
 
 log ""
 log "====================================================================="
@@ -267,6 +270,7 @@ if [ "${SKIP_TO_TIFF:-0}" != "1" ]; then
     read -rp "Press Enter to continue to greyscale TIFF generation (or Ctrl-C to stop and adjust thresholds)..."
 fi
 
+echo "=== Step 4 started at $(date) ===" | tee /dev/stderr
 # ==============================================================================
 # STEP 4: Generate greyscale TIFFs from thresholded data
 # ==============================================================================
@@ -317,7 +321,7 @@ done
 # ==============================================================================
 # STEP 5: Crop SPCImage .tif exports to 256x256
 # ==============================================================================
-
+echo "=== Step 5 started at $(date) ===" | tee /dev/stderr
 log "=== STEP 5: Cropping SPCImage .tif exports to 256x256 ==="
 
 for dir in "$DATADIR"/*PCK_on_SLIM; do
