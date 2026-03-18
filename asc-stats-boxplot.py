@@ -243,8 +243,13 @@ def make_boxplot(df, group_col, value_col='median', color_col=None,
     ax.set_xticklabels(labels)
 
     if title:
+        title = title.replace("color coded value", "Mean lifetime $\\tau_m$")
+        title = title.replace("ar", "$\\alpha_1/\\alpha_2$")
         ax.set_title(title + agg_label, fontsize=13, fontweight='bold')
+        
     if ylabel:
+        ylabel = ylabel.replace("color coded value", "mean lifetime $\\tau_m$")
+        ylabel = ylabel.replace("ar", "$\\alpha_1/\\alpha_2$")
         ax.set_ylabel(ylabel, fontsize=12)
     ax.set_xlabel(group_col.replace('_', ' ').title(), fontsize=12)
     ax.yaxis.grid(True, linestyle='--', alpha=0.7)
@@ -388,6 +393,14 @@ Examples:
         available = ', '.join(df.columns)
         print(f"Error: --color-by '{color_col}' not found. Available: {available}", file=sys.stderr)
         sys.exit(1)
+
+    if title:
+        title = title.replace("color coded value", "Mean lifetime $\\tau_m$")
+        title = title.replace("ar", "$\\alpha_1/\\alpha_2$")
+        
+    if ylabel:
+        ylabel = ylabel.replace("color coded value", "mean lifetime $\\tau_m$")
+        ylabel = ylabel.replace("ar", "$\\alpha_1/\\alpha_2$")
 
     # Make the boxplot
     fig, ax = make_boxplot(
